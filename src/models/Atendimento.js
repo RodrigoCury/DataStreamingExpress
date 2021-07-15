@@ -7,34 +7,51 @@ const moment = require("moment");
 const { default: axios } = require("axios");
 
 class Atendimento {
+
+    constructor() {
+        // Função de validação
+        this.valida = parametros => {
+            this.validacoes.filter(campo => {
+                const { nome } = campo
+                const parametro = parametros[nome]
+
+                return !campo.validator(parametro)
+            })
+        }
+
+        // Array padronizado com respostas em caso de Erro
+        this.validacoes = [
+            {
+                nome: 'data',
+                validator: this.dataEhvalida,
+                mensagem: `Data deve ser Posterior a data atual`,
+            },
+            {
+                nome: 'cliente',
+                validator: this.clienteEhValido,
+                mensagem: `CPF deve ter apenas 11 Digitos`
+            }
+        ]
+
+        // Checar se a data enviada é válida
+        this.dataEhvalida = ({ data, dataCriacao }) => moment(data).isSameOrAfter(dataCriacao)
+
+        // Checar se Nome é válido
+        this.clienteEhValido = (tamanho) => tamanho == 11
+    }
+
     adiciona(atendimento, res) {
         // Formatação da data enviada e criação dataCriacao
         const data = moment(atendimento.data, "DD/MM/YYYY").format('YYYY-MM-DD[T]HH:mm:ss');
         const dataCriacao = moment(new Date()).format('YYYY-MM-DD[T]HH:mm:ss');
 
-        // Checar se a data enviada é válida
-        const dataEhvalida = moment(data).isSameOrAfter(dataCriacao)
-
-        // Checar se Nome é válido
-        const clienteEhValido = atendimento.cliente.length >= 5
-
-        // Array padronizado com respostas em caso de Erro
-        const validacoes = [
-            {
-                nome: 'data',
-                validator: dataEhvalida,
-                mensagem: `Data deve ser Posterior a data atual`,
-            },
-            {
-                nome: 'cliente',
-                validator: clienteEhValido,
-                mensagem: `Cliente deve ter mais de 5 Letras`
-            }
-        ]
-
+        const parametrosDeValidacao = {
+            data: { data, dataCriacao },
+            cliente: { tamanho: atendimento.cliente.length }
+        }
 
         // Filtrar erros
-        const erros = validacoes.filter(val => !val.validator)
+        const erros = this.valida(parametrosDeValidacao)
         const existemErros = erros.length
 
         // Error First
