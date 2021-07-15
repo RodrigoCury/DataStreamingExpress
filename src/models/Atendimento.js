@@ -1,6 +1,10 @@
-const { default: axios } = require("axios");
+
+const conexao = require("../infra/database/conexao");
+
+const Repositorio = require('../repositorios/atendimento')
+
 const moment = require("moment");
-const conexao = require("../infra/conexao");
+const { default: axios } = require("axios");
 
 class Atendimento {
     adiciona(atendimento, res) {
@@ -35,45 +39,27 @@ class Atendimento {
 
         // Error First
         if (existemErros) {
-            res.status(400).json(erros)
+            return new Promise((resolve, reject) => reject(erros))
         } else {
             // Objeto para ser enviado ao banco de dados
             const atendimentoDatado = { ...atendimento, data, dataCriacao }
 
-            // Query para o DB
-            const sqlQuery = `INSERT INTO Atendimentos SET ?`
-
-            // Função de Query
-            conexao.query(sqlQuery, atendimentoDatado, (error, resultados) => {
-                if (error) {
-                    res.status(400).json(error)
-                } else {
-                    res.status(201)
-                        .json(atendimento)
-                }
-            })
+            // 
+            return Repositorio.adiciona(atendimentoDatado)
+                .then(resultados => {
+                    const id = resultados.id
+                    return { ...atendimentoDatado, id }
+                })
         }
     }
 
-    lista(res) {
-        const sqlQuery = 'SELECT * FROM Atendimentos'
-
-        conexao.query(sqlQuery, (error, resultados) => {
-            if (error) {
-                res.status(400).json(error)
-            } else {
-                res.status(200).json(resultados)
-            }
-        })
+    lista() {
+        return Repositorio.lista()
     }
 
-    buscaPorID(id, res) {
-        const sqlQuery = `SELECT * FROM Atendimentos WHERE id=${id}`
-
-        conexao.query(sqlQuery, async (error, resultados) => {
-            if (error) {
-                res.status(400).json(error)
-            } else {
+    buscaPorID(id) {
+        return Repositorio.buscaPorID(id)
+            .then(async (resultados) => {
                 const atendimento = resultados[0]
                 const cpf = atendimento.cliente
 
@@ -81,12 +67,11 @@ class Atendimento {
 
                 atendimento.cliente = data
 
-                res.status(200).json(atendimento)
-            }
-        })
+                return atendimento
+            })
     }
 
-    altera(id, valores, res) {
+    altera(id, valores) {
         // Lista de erros 
         const erros = []
 
@@ -118,32 +103,21 @@ class Atendimento {
 
         // Error First
         if (erros.length) {
-            res.status(400).json(erros)
+            return new Promise((resolve, reject) => reject(erros))
         } else {
-            const sqlQuery = `UPDATE Atendimentos SET ? WHERE id=?`
-
-            conexao.query(sqlQuery, [valores, id], (error, resultados) => {
-                if (error) {
-                    res.status(400).json(error)
-                } else {
-                    res.status(200).json({ id, ...valores })
-                }
-            })
+            return Repositorio.altera(id, valores)
+                .then(resultados => {
+                    return { id, ...resultados }
+                })
         }
 
     }
 
-    deletar(id, res) {
-        const sqlQuery = "DELETE FROM Atendimentos WHERE id=?"
-
-        conexao.query(sqlQuery, id, (error, resultados) => {
-            if (error) {
-                console.log(error)
-                res.status(400).json(error)
-            } else {
-                res.status(200).json({ id })
-            }
-        })
+    deletar(id) {
+        return Repositorio.deletar(id)
+            .then(resultados => {
+                return `ID ${id} foi Deletado`
+            })
     }
 }
 
